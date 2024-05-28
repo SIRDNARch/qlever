@@ -7,12 +7,12 @@
 
 #include "parser/sparqlParser/SparqlQleverVisitor.h"
 
+#include <absl/strings/str_join.h>
 #include <absl/strings/str_split.h>
 
 #include <string>
 #include <vector>
 
-#include "absl/strings/str_join.h"
 #include "engine/sparqlExpressions/LangExpression.h"
 #include "engine/sparqlExpressions/RandomExpression.h"
 #include "engine/sparqlExpressions/RegexExpression.h"
@@ -23,6 +23,7 @@
 #include "parser/data/Variable.h"
 #include "util/OnDestructionDontThrowDuringStackUnwinding.h"
 #include "util/StringUtils.h"
+#include "util/TransparentFunctors.h"
 #include "util/antlr/GenerateAntlrExceptionMetadata.h"
 
 using namespace ad_utility::sparql_types;
@@ -120,6 +121,16 @@ ExpressionPtr Visitor::processIriFunctionCall(
       checkNumArgs(1);
       return sparqlExpression::makeTanExpression(std::move(argList[0]));
     }
+  } else if (checkPrefix(XSD_PREFIX)) {
+    if (functionName == "integer" || functionName == "int") {
+      checkNumArgs(1);
+      return sparqlExpression::makeConvertToIntExpression(
+          std::move(argList[0]));
+    } else if (functionName == "double" || functionName == "decimal") {
+      checkNumArgs(1);
+      return sparqlExpression::makeConvertToDoubleExpression(
+          std::move(argList[0]));
+    }
   }
   reportNotSupported(ctx,
                      "Function \""s + iri.toStringRepresentation() + "\" is");
@@ -164,6 +175,15 @@ ParsedQuery Visitor::visit(Parser::QueryContext* ctx) {
   query._originalString = ctx->getStart()->getInputStream()->toString();
 
   return query;
+}
+
+// ____________________________________________________________________________________
+ParsedQuery Visitor::visit(Parser::QueryOrUpdateContext* ctx) {
+  if (ctx->update()) {
+    reportNotSupported(ctx->update(), "SPARQL 1.1 Update");
+  } else {
+    return visit(ctx->query());
+  }
 }
 
 // ____________________________________________________________________________________
@@ -322,7 +342,6 @@ GraphPattern Visitor::visit(Parser::GroupGraphPatternContext* ctx) {
                                      visibleVariablesSoFar.begin(),
                                      visibleVariablesSoFar.end());
           });
-  pattern._id = numGraphPatterns_++;
   if (ctx->subSelect()) {
     auto parsedQuerySoFar = std::exchange(parsedQuery_, ParsedQuery{});
     auto [subquery, valuesOpt] = visit(ctx->subSelect());
@@ -550,7 +569,7 @@ LimitOffsetClause Visitor::visit(Parser::LimitOffsetClausesContext* ctx) {
   LimitOffsetClause clause{};
   visitIf(&clause._limit, ctx->limitClause());
   visitIf(&clause._offset, ctx->offsetClause());
-  visitIf(&clause._textLimit, ctx->textLimitClause());
+  visitIf(&clause.textLimit_, ctx->textLimitClause());
   return clause;
 }
 
@@ -705,7 +724,6 @@ Visitor::SubQueryAndMaybeValues Visitor::visit(Parser::SubSelectContext* ctx) {
   for (const auto& variable : query.selectClause().getSelectedVariables()) {
     addVisibleVariable(variable);
   }
-  query._numGraphPatterns = numGraphPatterns_++;
   return {parsedQuery::Subquery{std::move(query)}, std::move(values)};
 }
 
@@ -1773,6 +1791,16 @@ ExpressionPtr Visitor::visit([[maybe_unused]] Parser::BuiltInCallContext* ctx) {
     return createUnary(&makeMinutesExpression);
   } else if (functionName == "seconds") {
     return createUnary(&makeSecondsExpression);
+  } else if (functionName == "md5") {
+    return createUnary(&makeMD5Expression);
+  } else if (functionName == "sha1") {
+    return createUnary(&makeSHA1Expression);
+  } else if (functionName == "sha256") {
+    return createUnary(&makeSHA256Expression);
+  } else if (functionName == "sha384") {
+    return createUnary(&makeSHA384Expression);
+  } else if (functionName == "sha512") {
+    return createUnary(&makeSHA512Expression);
   } else if (functionName == "rand") {
     AD_CONTRACT_CHECK(argList.empty());
     return std::make_unique<RandomExpression>();

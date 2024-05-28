@@ -69,9 +69,6 @@ class Service : public Operation {
   size_t getCostEstimate() override;
   VariableToColumnMap computeVariableToColumnMap() const override;
 
-  // Not relevant for SERVICE.
-  void setTextLimit([[maybe_unused]] size_t limit) override {}
-
   // We know nothing about the result at query planning time.
   bool knownEmptyResult() override { return false; }
 
@@ -83,7 +80,7 @@ class Service : public Operation {
   std::string getCacheKeyImpl() const override;
 
   // Compute the result using `getTsvFunction_`.
-  ResultTable computeResult() override;
+  Result computeResult([[maybe_unused]] bool requestLaziness) override;
 
   // Write the given TSV result to the given result object. The `I` is the width
   // of the result table.

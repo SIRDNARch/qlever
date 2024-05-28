@@ -163,7 +163,7 @@ TEST_F(ServiceTest, computeResult) {
       getTsvFunctionFactory(
           expectedUrl, expectedSparqlQuery,
           "?x\t?y\n<x>\t<y>\n<bla>\t<bli>\n<blu>\t<bla>\n<bli>\t<blu>\n")};
-  std::shared_ptr<const ResultTable> result = serviceOperation4.getResult();
+  std::shared_ptr<const Result> result = serviceOperation4.getResult();
 
   // Check that `<x>` and `<y>` were contained in the original vocabulary and
   // that `<bla>`, `<bli>`, `<blu>` were added to the (initially empty) local
@@ -173,9 +173,13 @@ TEST_F(ServiceTest, computeResult) {
   Id idY = getId("<y>");
   const auto& localVocab = result->localVocab();
   EXPECT_EQ(localVocab.size(), 3);
-  std::optional<LocalVocabIndex> idxBla = localVocab.getIndexOrNullopt("<bla>");
-  std::optional<LocalVocabIndex> idxBli = localVocab.getIndexOrNullopt("<bli>");
-  std::optional<LocalVocabIndex> idxBlu = localVocab.getIndexOrNullopt("<blu>");
+  auto get = [&localVocab](const std::string& s) {
+    return localVocab.getIndexOrNullopt(
+        ad_utility::triple_component::LiteralOrIri::iriref(s));
+  };
+  std::optional<LocalVocabIndex> idxBla = get("<bla>");
+  std::optional<LocalVocabIndex> idxBli = get("<bli>");
+  std::optional<LocalVocabIndex> idxBlu = get("<blu>");
   ASSERT_TRUE(idxBli.has_value());
   ASSERT_TRUE(idxBla.has_value());
   ASSERT_TRUE(idxBlu.has_value());

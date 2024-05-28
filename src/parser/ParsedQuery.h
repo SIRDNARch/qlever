@@ -136,7 +136,6 @@ class ParsedQuery {
 
   GraphPattern _rootGraphPattern;
   vector<SparqlFilter> _havingClauses;
-  size_t _numGraphPatterns = 1;
   // The number of additional internal variables that were added by the
   // implementation of ORDER BY as BIND+ORDER BY.
   int64_t numInternalVariables_ = 0;
@@ -268,20 +267,7 @@ class ParsedQuery {
   // grouped or aggregated in the presence of a GROUP BY clause.
   void addSolutionModifiers(SolutionModifiers modifiers);
 
-  /**
-   * @brief Adds all elements from p's rootGraphPattern to this parsed query's
-   * root graph pattern. This changes the graph patterns ids.
-   */
-  void merge(const ParsedQuery& p);
-
-  [[nodiscard]] string asString() const;
-
   // If this is a SELECT query, return all the selected aliases. Return an empty
   // vector for construct clauses.
   [[nodiscard]] const std::vector<Alias>& getAliases() const;
-  // If this is a SELECT query, yield all the selected variables. If this is a
-  // CONSTRUCT query, yield all the variables that are used in the CONSTRUCT
-  // clause. Note that the result may contain duplicates in the CONSTRUCT case.
-  [[nodiscard]] cppcoro::generator<const Variable>
-  getConstructedOrSelectedVariables() const;
 };

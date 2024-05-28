@@ -7,11 +7,10 @@
 
 #include <sstream>
 
-#include "CallFixedSize.h"
-#include "QueryExecutionTree.h"
-
-using std::endl;
-using std::string;
+#include "engine/CallFixedSize.h"
+#include "engine/Engine.h"
+#include "engine/QueryExecutionTree.h"
+#include "global/RuntimeParameters.h"
 
 // _____________________________________________________________________________
 size_t Sort::getResultWidth() const { return subtree_->getResultWidth(); }
@@ -25,7 +24,7 @@ Sort::Sort(QueryExecutionContext* qec,
       sortColumnIndices_{std::move(sortColumnIndices)} {}
 
 // _____________________________________________________________________________
-string Sort::getCacheKeyImpl() const {
+std::string Sort::getCacheKeyImpl() const {
   std::ostringstream os;
   os << "SORT(internal) on columns:";
 
@@ -37,7 +36,7 @@ string Sort::getCacheKeyImpl() const {
 }
 
 // _____________________________________________________________________________
-string Sort::getDescriptor() const {
+std::string Sort::getDescriptor() const {
   std::string orderByVars;
   const auto& varCols = subtree_->getVariableColumns();
   for (auto sortColumn : sortColumnIndices_) {
@@ -52,15 +51,16 @@ string Sort::getDescriptor() const {
 }
 
 // _____________________________________________________________________________
-ResultTable Sort::computeResult() {
+Result Sort::computeResult([[maybe_unused]] bool requestLaziness) {
+  using std::endl;
   LOG(DEBUG) << "Getting sub-result for Sort result computation..." << endl;
-  shared_ptr<const ResultTable> subRes = subtree_->getResult();
+  std::shared_ptr<const Result> subRes = subtree_->getResult();
 
   // TODO<joka921> proper timeout for sorting operations
   auto sortEstimateCancellationFactor =
       RuntimeParameters().get<"sort-estimate-cancellation-factor">();
   if (getExecutionContext()->getSortPerformanceEstimator().estimatedSortTime(
-          subRes->size(), subRes->width()) >
+          subRes->idTable().size(), subRes->idTable().numColumns()) >
       remainingTime() * sortEstimateCancellationFactor) {
     // The estimated time for this sort is much larger than the actually
     // remaining time, cancel this operation

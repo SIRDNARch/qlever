@@ -70,8 +70,8 @@ void Operation::recursivelySetTimeConstraint(
 }
 
 // ________________________________________________________________________
-shared_ptr<const ResultTable> Operation::getResult(bool isRoot,
-                                                   bool onlyReadFromCache) {
+std::shared_ptr<const Result> Operation::getResult(
+    bool isRoot, ComputationMode computationMode) {
   ad_utility::Timer timer{ad_utility::Timer::Started};
 
   if (isRoot) {
@@ -100,8 +100,7 @@ shared_ptr<const ResultTable> Operation::getResult(bool isRoot,
     auto lock =
         getExecutionContext()->getQueryTreeCache().pinnedSizes().wlock();
     forAllDescendants([&lock](QueryExecutionTree* child) {
-      if (child->getType() == QueryExecutionTree::OperationType::SCAN &&
-          child->getResultWidth() == 1) {
+      if (child->getRootOperation()->isIndexScanWithNumVariables(1)) {
         (*lock)[child->getRootOperation()->getCacheKey()] =
             child->getSizeEstimate();
       }
@@ -121,11 +120,12 @@ shared_ptr<const ResultTable> Operation::getResult(bool isRoot,
                 updateRuntimeInformationOnFailure(timer.msecs());
               }
             });
-    auto computeLambda = [this, &timer] {
+    auto computeLambda = [this, &timer, computationMode] {
       checkCancellation();
       runtimeInfo().status_ = RuntimeInformation::Status::inProgress;
       signalQueryUpdate();
-      ResultTable result = computeResult();
+      Result result =
+          computeResult(computationMode == ComputationMode::LAZY_IF_SUPPORTED);
 
       checkCancellation();
       // Compute the datatypes that occur in each column of the result.
@@ -160,10 +160,12 @@ shared_ptr<const ResultTable> Operation::getResult(bool isRoot,
       return CacheValue{std::move(result), runtimeInfo()};
     };
 
-    auto result = (pinResult) ? cache.computeOncePinned(cacheKey, computeLambda,
-                                                        onlyReadFromCache)
-                              : cache.computeOnce(cacheKey, computeLambda,
-                                                  onlyReadFromCache);
+    bool onlyReadFromCache = computationMode == ComputationMode::ONLY_IF_CACHED;
+
+    auto result = pinResult ? cache.computeOncePinned(cacheKey, computeLambda,
+                                                      onlyReadFromCache)
+                            : cache.computeOnce(cacheKey, computeLambda,
+                                                onlyReadFromCache);
 
     if (result._resultPointer == nullptr) {
       AD_CORRECTNESS_CHECK(onlyReadFromCache);
@@ -171,8 +173,9 @@ shared_ptr<const ResultTable> Operation::getResult(bool isRoot,
     }
 
     updateRuntimeInformationOnSuccess(result, timer.msecs());
-    auto resultNumRows = result._resultPointer->resultTable()->size();
-    auto resultNumCols = result._resultPointer->resultTable()->width();
+    auto resultNumRows = result._resultPointer->resultTable()->idTable().size();
+    auto resultNumCols =
+        result._resultPointer->resultTable()->idTable().numColumns();
     LOG(DEBUG) << "Computed result of size " << resultNumRows << " x "
                << resultNumCols << std::endl;
     return result._resultPointer->resultTable();
@@ -222,10 +225,10 @@ std::chrono::milliseconds Operation::remainingTime() const {
 
 // _______________________________________________________________________
 void Operation::updateRuntimeInformationOnSuccess(
-    const ResultTable& resultTable, ad_utility::CacheStatus cacheStatus,
+    const Result& resultTable, ad_utility::CacheStatus cacheStatus,
     Milliseconds duration, std::optional<RuntimeInformation> runtimeInfo) {
   _runtimeInfo->totalTime_ = duration;
-  _runtimeInfo->numRows_ = resultTable.size();
+  _runtimeInfo->numRows_ = resultTable.idTable().size();
   _runtimeInfo->cacheStatus_ = cacheStatus;
 
   _runtimeInfo->status_ = RuntimeInformation::Status::fullyMaterialized;
@@ -422,13 +425,6 @@ const vector<ColumnIndex>& Operation::getResultSortedOn() const {
     _resultSortedColumns = resultSortedOn();
   }
   return _resultSortedColumns.value();
-}
-
-// ___________________________________________________________________________
-void Operation::setTextLimit(size_t limit) {
-  std::ranges::for_each(getChildren(), [limit](auto* child) {
-    child->getRootOperation()->setTextLimit(limit);
-  });
 }
 
 // _____________________________________________________________________________

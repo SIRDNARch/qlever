@@ -13,6 +13,9 @@ add_library(sparqlExpressions
         DateExpressions.cpp
         StringExpressions.cpp
         IsSomethingExpressions.cpp
-        ConditionalExpressions.cpp)
+        ConditionalExpressions.cpp
+        SparqlExpressionTypes.cpp
+        SparqlExpression.cpp
+        ConvertToNumericExpression.cpp)
 
 qlever_target_link_libraries(sparqlExpressions util index Boost::url)

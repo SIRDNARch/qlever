@@ -5,46 +5,40 @@
 //   2018-     Johannes Kalmbach (kalmbach@informatik.uni-freiburg.de)
 #pragma once
 
-#include <engine/ResultTable.h>
-#include <global/Pattern.h>
-#include <global/SpecialIds.h>
-#include <index/CompressedRelation.h>
-#include <index/ConstantsIndexBuilding.h>
-#include <index/DocsDB.h>
-#include <index/Index.h>
-#include <index/IndexBuilderTypes.h>
-#include <index/IndexMetaData.h>
-#include <index/PatternCreator.h>
-#include <index/Permutation.h>
-#include <index/StxxlSortFunctors.h>
-#include <index/TextMetaData.h>
-#include <index/Vocabulary.h>
-#include <index/VocabularyMerger.h>
-#include <parser/ContextFileParser.h>
-#include <parser/TripleComponent.h>
-#include <parser/TurtleParser.h>
-#include <util/BackgroundStxxlSorter.h>
-#include <util/BufferedVector.h>
-#include <util/CompressionUsingZstd/ZstdWrapper.h>
-#include <util/File.h>
-#include <util/Forward.h>
-#include <util/HashMap.h>
-#include <util/MmapVector.h>
-#include <util/json.h>
-
 #include <array>
-#include <fstream>
 #include <memory>
 #include <optional>
 #include <string>
-#include <stxxl/sorter>
-#include <stxxl/stream>
 #include <stxxl/vector>
 #include <vector>
 
+#include "engine/Result.h"
 #include "engine/idTable/CompressedExternalIdTable.h"
+#include "global/Pattern.h"
+#include "global/SpecialIds.h"
+#include "index/CompressedRelation.h"
+#include "index/ConstantsIndexBuilding.h"
+#include "index/DocsDB.h"
+#include "index/Index.h"
+#include "index/IndexBuilderTypes.h"
+#include "index/IndexMetaData.h"
+#include "index/PatternCreator.h"
+#include "index/Permutation.h"
+#include "index/StxxlSortFunctors.h"
+#include "index/TextMetaData.h"
+#include "index/Vocabulary.h"
+#include "index/VocabularyMerger.h"
+#include "parser/ContextFileParser.h"
+#include "parser/TripleComponent.h"
+#include "parser/TurtleParser.h"
+#include "util/BufferedVector.h"
 #include "util/CancellationHandle.h"
+#include "util/File.h"
+#include "util/Forward.h"
+#include "util/HashMap.h"
 #include "util/MemorySize/MemorySize.h"
+#include "util/MmapVector.h"
+#include "util/json.h"
 
 using ad_utility::BufferedVector;
 using ad_utility::MmapVector;
@@ -496,17 +490,20 @@ class IndexImpl {
   // OSP-OPS, SPO-SOP).  First creates the permutation and then exchanges the
   // multiplicities and also writes the MetaData to disk. So we end up with
   // fully functional permutations.
+  //
+  // TODO: The rest of this comment looks outdated.
+  //
   // performUnique must be set for the first pair created using vec to enforce
   // RDF standard (no duplicate triples).
   // createPatternsAfterFirst is only valid when  the pair is SPO-SOP because
   // the SPO permutation is also needed for patterns (see usage in
   // IndexImpl::createFromFile function)
 
-  [[nodiscard]] size_t createPermutationPair(size_t numColumns,
-                                             auto&& sortedTriples,
-                                             const Permutation& p1,
-                                             const Permutation& p2,
-                                             auto&&... perTripleCallbacks);
+  template <typename SortedTriplesType, typename... CallbackTypes>
+  [[nodiscard]] size_t createPermutationPair(
+      size_t numColumns, SortedTriplesType&& sortedTriples,
+      const Permutation& p1, const Permutation& p2,
+      CallbackTypes&&... perTripleCallbacks);
 
   // wrapper for createPermutation that saves a lot of code duplications
   // Writes the permutation that is specified by argument permutation

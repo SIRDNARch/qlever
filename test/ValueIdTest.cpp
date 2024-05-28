@@ -9,6 +9,7 @@
 #include "./ValueIdTestHelpers.h"
 #include "./util/GTestHelpers.h"
 #include "global/ValueId.h"
+#include "util/HashSet.h"
 #include "util/Random.h"
 #include "util/Serializer/ByteBufferSerializer.h"
 #include "util/Serializer/Serializer.h"
@@ -108,18 +109,24 @@ TEST(ValueId, Indices) {
     testSingle(0);
     testSingle(ValueId::maxIndex);
 
-    for (size_t idx = 0; idx < 10'000; ++idx) {
-      auto value = invalidIndexGenerator();
-      ASSERT_THROW(makeId(value), ValueId::IndexTooLargeException);
-      AD_EXPECT_THROW_WITH_MESSAGE(makeId(value),
-                                   ::testing::ContainsRegex("is bigger than"));
+    if (type != Datatype::LocalVocabIndex) {
+      for (size_t idx = 0; idx < 10'000; ++idx) {
+        auto value = invalidIndexGenerator();
+        ASSERT_THROW(makeId(value), ValueId::IndexTooLargeException);
+        AD_EXPECT_THROW_WITH_MESSAGE(
+            makeId(value), ::testing::ContainsRegex("is bigger than"));
+      }
     }
   };
 
   testRandomIds(&makeTextRecordId, &getTextRecordIndex,
                 Datatype::TextRecordIndex);
   testRandomIds(&makeVocabId, &getVocabIndex, Datatype::VocabIndex);
-  testRandomIds(&makeLocalVocabId, &getLocalVocabIndex,
+
+  auto localVocabWordToInt = [](const auto& input) {
+    return std::atoll(getLocalVocabIndex(input).c_str());
+  };
+  testRandomIds(&makeLocalVocabId, localVocabWordToInt,
                 Datatype::LocalVocabIndex);
   testRandomIds(&makeWordVocabId, &getWordVocabIndex, Datatype::WordVocabIndex);
 }
@@ -282,19 +289,27 @@ TEST(ValueId, toDebugString) {
     stream << id;
     ASSERT_EQ(stream.str(), expected);
   };
-  test(ValueId::makeUndefined(), "Undefined:Undefined");
-  test(ValueId::makeFromInt(-42), "Int:-42");
-  test(ValueId::makeFromDouble(42.0), "Double:42.000000");
-  test(ValueId::makeFromBool(false), "Bool:false");
-  test(ValueId::makeFromBool(true), "Bool:true");
-  test(makeVocabId(15), "VocabIndex:15");
-  test(makeLocalVocabId(25), "LocalVocabIndex:25");
-  test(makeTextRecordId(37), "TextRecordIndex:37");
-  test(makeWordVocabId(42), "WordVocabIndex:42");
-  test(makeBlankNodeId(27), "BlankNodeIndex:27");
+  test(ValueId::makeUndefined(), "U:0");
+  // Values with type undefined can usually only have one value (all data bits
+  // zero). Sometimes ValueIds with type undefined but non-zero data bits are
+  // used. The following test tests one of these internal ValueIds.
+  ValueId customUndefined = ValueId::fromBits(
+      ValueId::IntegerType::fromNBit(100) |
+      (static_cast<ValueId::T>(Datatype::Undefined) << ValueId::numDataBits));
+  test(customUndefined, "U:100");
+  test(ValueId::makeFromDouble(42.0), "D:42.000000");
+  test(ValueId::makeFromBool(false), "B:false");
+  test(ValueId::makeFromBool(true), "B:true");
+  test(makeVocabId(15), "V:15");
+  auto str = ad_utility::triple_component::LiteralOrIri::literalWithoutQuotes(
+      "SomeValue");
+  test(ValueId::makeFromLocalVocabIndex(&str), "L:\"SomeValue\"");
+  test(makeTextRecordId(37), "T:37");
+  test(makeWordVocabId(42), "W:42");
+  test(makeBlankNodeId(27), "B:27");
   test(ValueId::makeFromDate(
            DateOrLargeYear{123456, DateOrLargeYear::Type::Year}),
-       "Date:123456");
+       "D:123456");
   // make an ID with an invalid datatype
   ASSERT_ANY_THROW(test(ValueId::max(), "blim"));
 }
