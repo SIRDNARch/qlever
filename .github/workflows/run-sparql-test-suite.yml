@@ -60,15 +60,7 @@ jobs:
           python testsuite.py config http://0.0.0.0 7001 ${{github.workspace}}/sparql-test-suite/sparql/sparql11/ ${{github.workspace}}/qlever-code/build/ localhost sparql sparql
           python testsuite.py extract
           python testsuite.py ${{ github.sha }}
-          python compare.py ${{ github.sha }}
           cd ..
-    - name: Commit to test-web
-      run: |
-        cd test-web
-        cp ../qlever-test-suite/results/${{ github.sha }}.json ./results/
-        git add .
-        git commit -m "Add ${{ github.sha }}"
-        git push
 # Only upload directly if this is not a pull request. In this
 # case we are on the master branch and have access to the token.
     - name: "Submit data to server"
@@ -86,13 +78,13 @@ jobs:
       # Note: If you change any of the filenames here, you also have to change them in `upload-coverage.yml`
       run : |
         mkdir -p conformance-report
-        echo ${{ github.event.number }} > ./coverage-report/pr
-        echo ${{ github.repository }} > ./coverage-report/github_repository
-        echo ${GITHUB_REF} > ./coverage-report/github_ref
+        echo ${{ github.event.number }} > ./conformance-report/pr
+        echo ${{ github.repository }} > ./conformance-report/github_repository
+        echo ${GITHUB_REF} > ./conformance-report/github_ref
         mv ${{ github.workspace}}/qlever-test-suite/results/${{ github.sha }}.json coverage-report
     - name: Upload coverage artifact
       if: github.event_name == 'pull_request'
       uses: actions/upload-artifact@v3
       with:
-        name: coverage-report
-        path: coverage-report/
+        name: conformance-report
+        path: conformance-report/
