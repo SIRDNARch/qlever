@@ -3,6 +3,9 @@ name: sparql-test-suite
 on:
   push:
     branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  merge_group:
 
 jobs:
   build:
@@ -29,12 +32,6 @@ jobs:
         repository: "SIRDNARch/qlever-test-suite"
         token: ${{ secrets.REPO_ACCESS_TOKEN }}
         path: qlever-test-suite
-    - name: Checkout test-web
-      run: |        
-        git config --global user.email "andrisrico@gmail.com"
-        git config --global user.name "SIRDNARch"
-        git clone https://x-access-token:${{ secrets.REPO_ACCESS_TOKEN }}@github.com/SIRDNARch/test-web
-        
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
@@ -55,7 +52,6 @@ jobs:
       run: mkdir ${{github.workspace}}/qlever-code/build
     - name: Configure CMake
       run: cmake -S ${{github.workspace}}/qlever-code/ -B ${{github.workspace}}/qlever-code/build ${{env.cmake-flags}} -DCMAKE_BUILD_TYPE=${{env.build-type}} -DLOGLEVEL=INFO -DUSE_PARALLEL=false
-
     - name: Build
       run: cmake --build ${{github.workspace}}/qlever-code/build --config ${{env.build-type}} -- -j $(nproc)
     - name: Execute test suite
@@ -73,9 +69,30 @@ jobs:
         git add .
         git commit -m "Add ${{ github.sha }}"
         git push
-    - name: Fail Workflow if Code
-      if: env.status != '0'
+# Only upload directly if this is not a pull request. In this
+# case we are on the master branch and have access to the token.
+    - name: "Submit data to server"
+      if: github.event_name != 'pull_request'
+      env:
+              SERVER_URL: ${{ secrets.SERVER_URL }}
+              API_KEY: ${{ secrets.SERVER_KEY }}
       run: |
-        echo $msg
-        echo $link
-        exit 1
+          curl -H "x-api-key: $API_KEY" -F "file=@generated-file.txt" $SERVER_URL/upload
+
+# For a pull request we store the file as well as some information
+# about this PR (number, how to check it out, etc.) and upload it as an artifact.
+    - name: Save PR number and coverage file in same directory
+      if: github.event_name == 'pull_request'
+      # Note: If you change any of the filenames here, you also have to change them in `upload-coverage.yml`
+      run : |
+        mkdir -p conformance-report
+        echo ${{ github.event.number }} > ./coverage-report/pr
+        echo ${{ github.repository }} > ./coverage-report/github_repository
+        echo ${GITHUB_REF} > ./coverage-report/github_ref
+        mv ${{ github.workspace}}/qlever-test-suite/results/${{ github.sha }}.json coverage-report
+    - name: Upload coverage artifact
+      if: github.event_name == 'pull_request'
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: coverage-report/
