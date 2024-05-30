@@ -29,7 +29,7 @@ jobs:
     - name: Checkout qlever-test-suite
       uses: actions/checkout@v3
       with:
-        repository: "SIRDNARch/qlever-test-suite"
+        repository: "SIRDNARch/qlever-conformance-tests"
         token: ${{ secrets.REPO_ACCESS_TOKEN }}
         path: qlever-test-suite
     - name: Set up Python
