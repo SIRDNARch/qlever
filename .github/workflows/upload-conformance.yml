@@ -58,4 +58,4 @@ jobs:
                 SERVER_URL: ${{ secrets.SERVER_URL }}
                 API_KEY: ${{ secrets.SERVER_KEY }}
         run: |
-            curl -H "x-api-key: $API_KEY" -F "file=@${{commit_sha}}.json" $SERVER_URL/upload
+            curl -H "x-api-key: $API_KEY" -F "file=@${{env.commit_sha}}.json" $SERVER_URL/upload
