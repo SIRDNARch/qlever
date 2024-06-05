@@ -82,7 +82,7 @@ jobs:
         echo ${{ github.repository }} > ./conformance-report/github_repository
         echo ${GITHUB_REF} > ./conformance-report/github_ref
         echo ${{github.sha}} > ./conformance-report/sha
-        mv ${{ github.workspace}}/qlever-test-suite/results/${{ github.sha }}.json coverage-report
+        mv ${{ github.workspace}}/qlever-test-suite/results/${{ github.sha }}.json conformance-report
     - name: Upload coverage artifact
       if: github.event_name == 'pull_request'
       uses: actions/upload-artifact@v3
