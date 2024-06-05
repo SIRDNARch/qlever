@@ -44,6 +44,8 @@ jobs:
         run: echo "pr_number=`cat pr`" >> $GITHUB_ENV
       - name: "Read Github Ref"
         run: echo "original_github_ref=`cat github_ref`" >> $GITHUB_ENV;
+      - name: "Read Github SHA"
+        run: echo "commit_sha=`cat sha`" >> $GITHUB_ENV;
       - name: "Read Github Repository"
         run: echo "original_github_repository=`cat github_repository`" >> $GITHUB_ENV;
         # We have to check out the source code from the PR, otherwise Codecov
@@ -56,4 +58,4 @@ jobs:
                 SERVER_URL: ${{ secrets.SERVER_URL }}
                 API_KEY: ${{ secrets.SERVER_KEY }}
         run: |
-            curl -H "x-api-key: $API_KEY" -F "file=@generated-file.txt" $SERVER_URL/upload
+            curl -H "x-api-key: $API_KEY" -F "file=@${{commit_sha}}.json" $SERVER_URL/upload
