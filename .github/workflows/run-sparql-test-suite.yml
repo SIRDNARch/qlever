@@ -17,6 +17,9 @@ jobs:
 
     runs-on: ubuntu-22.04
     steps:
+    - name: Print head_sha
+      run: |
+            echo "The head SHA is ${{ github.event.pull_request.head.sha }}"
     - uses: actions/checkout@v3
       with:
         submodules: "recursive"
