@@ -17,9 +17,6 @@ jobs:
 
     runs-on: ubuntu-22.04
     steps:
-    - name: Print head_sha
-      run: |
-            echo "The head SHA is ${{ github.event.pull_request.head.sha }}"
     - uses: actions/checkout@v3
       with:
         submodules: "recursive"
@@ -75,7 +72,7 @@ jobs:
           curl -H "x-api-key: $API_KEY" -F "file=@${{github.workspace}}/qlever-test-suite/results/${{ github.sha }}.json" $SERVER_URL/upload
 
 # For a pull request we store the file as well as some information
-# about this PR (number, how to check it out, etc.) and upload it as an artifact.
+# about this PR (number, how to check it out, etc.) and upload it as an artifact
     - name: Save PR number and coverage file in same directory
       if: github.event_name == 'pull_request'
       # Note: If you change any of the filenames here, you also have to change them in `upload-coverage.yml`
@@ -85,7 +82,7 @@ jobs:
         echo ${{ github.repository }} > ./conformance-report/github_repository
         echo ${GITHUB_REF} > ./conformance-report/github_ref
         echo ${{github.sha}} > ./conformance-report/sha
-        mv ${{ github.workspace}}/qlever-test-suite/results/${{ github.sha }}.json conformance-report
+        mv ${{ github.workspace}}/qlever-test-suite/results/${{ github.sha }}.json conformance-report/${{ github.event.pull_request.head.sha }}.json
     - name: Upload coverage artifact
       if: github.event_name == 'pull_request'
       uses: actions/upload-artifact@v3
