@@ -69,7 +69,7 @@ jobs:
               SERVER_URL: ${{ secrets.SERVER_URL }}
               API_KEY: ${{ secrets.SERVER_KEY }}
       run: |
-          curl -H "x-api-key: $API_KEY" -H "event: ${{github.event.workflow_run.event}}" -F "file=@${{github.workspace}}/qlever-test-suite/results/${{ github.sha }}.json" $SERVER_URL/upload
+          curl -H "x-api-key: $API_KEY" -H "event: ${{github.event.workflow_run.event}}" -H "sha: ${{github.sha}}" -F "file=@${{github.workspace}}/qlever-test-suite/results/${{ github.sha }}.json" $SERVER_URL/upload
 
 # For a pull request we store the file as well as some information
 # about this PR (number, how to check it out, etc.) and upload it as an artifact
