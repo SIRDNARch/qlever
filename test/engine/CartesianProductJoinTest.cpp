@@ -90,9 +90,21 @@ void testCartesianProduct(VectorTable expected, std::vector<VectorTable> inputs,
 TEST(CartesianProductJoin, computeResult) {
   // Simple base cases.
   VectorTable v{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
+  VectorTable empty{};
   testCartesianProduct(v, {v});
-  testCartesianProduct({}, {{}, v, {}});
-  testCartesianProduct({}, {{}, {}});
+  testCartesianProduct(empty, {empty, v, empty});
+  testCartesianProduct(empty, {empty, empty});
+
+  // Test cases where some or all of the inputs are Neutral elements (1 row,
+  // zero columns) that are automatically filtered out by the
+  // `CartesianProductJoin`.
+  VectorTable neutral{{}};
+  testCartesianProduct(neutral, {neutral});
+  testCartesianProduct(v, {v, neutral});
+  testCartesianProduct(v, {neutral, v, neutral});
+  testCartesianProduct(neutral, {neutral, neutral, neutral});
+  testCartesianProduct(empty, {neutral, empty, neutral});
+  testCartesianProduct(empty, {neutral, empty, v});
 
   // Fails because of an empty input.
   EXPECT_ANY_THROW(makeJoin({}));
@@ -115,7 +127,7 @@ TEST(CartesianProductJoin, computeResult) {
                         {1, 3, 5}},
                        {{{0}, {1}}, {{2}, {3}}, {{4}, {5}}});
 
-  // Heterogenous sizes.
+  // Heterogeneous sizes.
   testCartesianProduct(
       {{0, 2, 4}, {1, 2, 4}, {0, 2, 5}, {1, 2, 5}, {0, 2, 6}, {1, 2, 6}},
       {{{0}, {1}}, {{2}}, {{4}, {5}, {6}}});

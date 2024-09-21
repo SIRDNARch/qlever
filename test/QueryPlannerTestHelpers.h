@@ -14,11 +14,14 @@
 #include "engine/Filter.h"
 #include "engine/IndexScan.h"
 #include "engine/Join.h"
+#include "engine/Minus.h"
 #include "engine/MultiColumnJoin.h"
 #include "engine/NeutralElementOperation.h"
+#include "engine/OptionalJoin.h"
 #include "engine/OrderBy.h"
 #include "engine/QueryExecutionTree.h"
 #include "engine/QueryPlanner.h"
+#include "engine/Service.h"
 #include "engine/Sort.h"
 #include "engine/TextIndexScanForEntity.h"
 #include "engine/TextIndexScanForWord.h"
@@ -203,6 +206,10 @@ inline auto IndexScanFromStrings =
 inline auto MultiColumnJoin = MatchTypeAndUnorderedChildren<::MultiColumnJoin>;
 inline auto Join = MatchTypeAndUnorderedChildren<::Join>;
 
+constexpr auto OptionalJoin = MatchTypeAndOrderedChildren<::OptionalJoin>;
+
+constexpr auto Minus = MatchTypeAndOrderedChildren<::Minus>;
+
 // Return a matcher that matches a query execution tree that consists of
 // multiple JOIN operations that join the `children`. The `INTERNAL SORT BY`
 // operations required for the joins are also ignored by this matcher.
@@ -284,6 +291,23 @@ constexpr auto OrderBy = [](const ::OrderBy::SortedVariables& sortedVariables,
 
 // Match a `UNION` operation.
 constexpr auto Union = MatchTypeAndOrderedChildren<::Union>;
+
+// Match a `SERVICE` operation.
+constexpr auto Service = [](const std::optional<QetMatcher>& siblingMatcher,
+                            std::string_view graphPatternAsString) {
+  const auto optSiblingMatcher =
+      [&]() -> Matcher<const std::shared_ptr<QueryExecutionTree>&> {
+    if (siblingMatcher.has_value()) {
+      return Pointee(siblingMatcher.value());
+    }
+    return IsNull();
+  }();
+
+  return RootOperation<::Service>(
+      AllOf(AD_PROPERTY(::Service, getSiblingTree, optSiblingMatcher),
+            AD_PROPERTY(::Service, getGraphPatternAsString,
+                        Eq(graphPatternAsString))));
+};
 
 /// Parse the given SPARQL `query`, pass it to a `QueryPlanner` with empty
 /// execution context, and return the resulting `QueryExecutionTree`

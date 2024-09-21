@@ -144,7 +144,7 @@ class QueryPlanner {
     size_t getSizeEstimate() const;
   };
 
-  // A helper class to find connected componenents of an RDF query using DFS.
+  // A helper class to find connected components of an RDF query using DFS.
   class QueryGraph {
    private:
     // A simple class to represent a graph node as well as some data for a DFS.
@@ -328,6 +328,16 @@ class QueryPlanner {
   createJoinWithHasPredicateScan(
       SubtreePlan a, SubtreePlan b,
       const std::vector<std::array<ColumnIndex, 2>>& jcs);
+
+  // The following two functions are used to provide a Service-operation with
+  // it's siblingTree, allowing us to optimize the service-query.
+  [[nodiscard]] static std::optional<SubtreePlan> createJoinWithService(
+      const SubtreePlan& a, const SubtreePlan& b,
+      const std::vector<std::array<ColumnIndex, 2>>& jcs);
+
+  template <typename Operation>
+  [[nodiscard]] static std::optional<SubtreePlan> createSubtreeWithService(
+      const SubtreePlan& a, const SubtreePlan& b);
 
   [[nodiscard]] vector<SubtreePlan> getOrderByRow(
       const ParsedQuery& pq,

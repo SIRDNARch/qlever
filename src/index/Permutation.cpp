@@ -41,14 +41,15 @@ void Permutation::loadFromDisk(const std::string& onDiskBase) {
 // _____________________________________________________________________
 IdTable Permutation::scan(const ScanSpecification& scanSpec,
                           ColumnIndicesRef additionalColumns,
-                          const CancellationHandle& cancellationHandle) const {
+                          const CancellationHandle& cancellationHandle,
+                          const LimitOffsetClause& limitOffset) const {
   if (!isLoaded_) {
     throw std::runtime_error("This query requires the permutation " +
                              readableName_ + ", which was not loaded");
   }
 
   return reader().scan(scanSpec, meta_.blockData(), additionalColumns,
-                       cancellationHandle);
+                       cancellationHandle, limitOffset);
 }
 
 // _____________________________________________________________________
@@ -123,13 +124,16 @@ std::optional<CompressedRelationMetadata> Permutation::getMetadata(
 // _____________________________________________________________________
 std::optional<Permutation::MetadataAndBlocks> Permutation::getMetadataAndBlocks(
     const ScanSpecification& scanSpec) const {
-  MetadataAndBlocks result{
+  CompressedRelationReader::ScanSpecAndBlocks mb{
       scanSpec,
-      CompressedRelationReader::getRelevantBlocks(scanSpec, meta_.blockData()),
-      std::nullopt};
+      CompressedRelationReader::getRelevantBlocks(scanSpec, meta_.blockData())};
 
-  result.firstAndLastTriple_ = reader().getFirstAndLastTriple(result);
-  return result;
+  auto firstAndLastTriple = reader().getFirstAndLastTriple(mb);
+  if (!firstAndLastTriple.has_value()) {
+    return std::nullopt;
+  }
+  return MetadataAndBlocks{std::move(mb),
+                           std::move(firstAndLastTriple.value())};
 }
 
 // _____________________________________________________________________
@@ -137,7 +141,8 @@ Permutation::IdTableGenerator Permutation::lazyScan(
     const ScanSpecification& scanSpec,
     std::optional<std::vector<CompressedBlockMetadata>> blocks,
     ColumnIndicesRef additionalColumns,
-    ad_utility::SharedCancellationHandle cancellationHandle) const {
+    ad_utility::SharedCancellationHandle cancellationHandle,
+    const LimitOffsetClause& limitOffset) const {
   if (!blocks.has_value()) {
     auto blockSpan = CompressedRelationReader::getRelevantBlocks(
         scanSpec, meta_.blockData());
@@ -145,5 +150,6 @@ Permutation::IdTableGenerator Permutation::lazyScan(
   }
   ColumnIndices columns{additionalColumns.begin(), additionalColumns.end()};
   return reader().lazyScan(scanSpec, std::move(blocks.value()),
-                           std::move(columns), std::move(cancellationHandle));
+                           std::move(columns), std::move(cancellationHandle),
+                           limitOffset);
 }

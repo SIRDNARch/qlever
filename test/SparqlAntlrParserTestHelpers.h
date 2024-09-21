@@ -495,17 +495,18 @@ inline auto InlineData = [](const std::vector<::Variable>& vars,
   return detail::GraphPatternOperation<p::Values>(Values(vars, values));
 };
 
-inline auto Service = [](const ::Iri& iri,
-                         const std::vector<::Variable>& variables,
-                         const std::string& graphPattern,
-                         const std::string& prologue =
-                             "") -> Matcher<const p::GraphPatternOperation&> {
+inline auto Service =
+    [](const TripleComponent::Iri& iri,
+       const std::vector<::Variable>& variables,
+       const std::string& graphPattern, const std::string& prologue = "",
+       bool silent = false) -> Matcher<const p::GraphPatternOperation&> {
   auto serviceMatcher = testing::AllOf(
       AD_FIELD(p::Service, serviceIri_, testing::Eq(iri)),
       AD_FIELD(p::Service, visibleVariables_,
                testing::UnorderedElementsAreArray(variables)),
       AD_FIELD(p::Service, graphPatternAsString_, testing::Eq(graphPattern)),
-      AD_FIELD(p::Service, prologue_, testing::Eq(prologue)));
+      AD_FIELD(p::Service, prologue_, testing::Eq(prologue)),
+      AD_FIELD(p::Service, silent_, testing::Eq(silent)));
   return detail::GraphPatternOperation<p::Service>(serviceMatcher);
 };
 
@@ -794,7 +795,7 @@ inline auto SelectQuery =
 
 namespace pq {
 
-// This is implemented as a separater Matcher because it generates some overhead
+// This is implemented as a separated Matcher because it generates some overhead
 // in the tests.
 inline auto OriginalString =
     [](const std::string& originalString) -> Matcher<const ::ParsedQuery&> {
@@ -824,9 +825,9 @@ inline auto ConstructQuery(const std::vector<std::array<GraphTerm, 3>>& elems,
     -> Matcher<const ParsedQuery&> {
   return testing::AllOf(
       AD_PROPERTY(ParsedQuery, hasConstructClause, testing::IsTrue()),
-      AD_PROPERTY(
-          ParsedQuery, constructClause,
-          AD_FIELD(parsedQuery::ConstructClause, triples_, testing::Eq(elems))),
+      AD_PROPERTY(ParsedQuery, constructClause,
+                  AD_FIELD(parsedQuery::ConstructClause, triples_,
+                           testing::ElementsAreArray(elems))),
       RootGraphPattern(m));
 }
 
@@ -834,6 +835,30 @@ inline auto ConstructQuery(const std::vector<std::array<GraphTerm, 3>>& elems,
 inline auto VisibleVariables =
     [](const std::vector<::Variable>& elems) -> Matcher<const ParsedQuery&> {
   return AD_PROPERTY(ParsedQuery, getVisibleVariables, testing::Eq(elems));
+};
+
+inline auto UpdateQuery =
+    [](const std::vector<SparqlTripleSimple>& toDelete,
+       const std::vector<SparqlTripleSimple>& toInsert,
+       const Matcher<const p::GraphPattern&>& graphPatternMatcher)
+    -> Matcher<const ::ParsedQuery&> {
+  return testing::AllOf(
+      AD_PROPERTY(ParsedQuery, hasUpdateClause, testing::IsTrue()),
+      AD_PROPERTY(ParsedQuery, updateClause,
+                  AD_FIELD(parsedQuery::UpdateClause, toDelete_,
+                           testing::ElementsAreArray(toDelete))),
+      AD_PROPERTY(ParsedQuery, updateClause,
+                  AD_FIELD(parsedQuery::UpdateClause, toInsert_,
+                           testing::ElementsAreArray(toInsert))),
+      RootGraphPattern(graphPatternMatcher));
+};
+
+template <typename T>
+auto inline Variant = []() { return testing::VariantWith<T>(testing::_); };
+
+auto inline GraphRefIri = [](const string& iri) {
+  return testing::VariantWith<GraphRef>(AD_PROPERTY(
+      TripleComponent::Iri, toStringRepresentation, testing::Eq(iri)));
 };
 
 }  // namespace matchers

@@ -9,31 +9,29 @@
 #include "engine/Operation.h"
 #include "engine/Values.h"
 #include "parser/ParsedQuery.h"
+#include "util/LazyJsonParser.h"
 #include "util/http/HttpClient.h"
 
 // The SERVICE operation. Sends a query to the remote endpoint specified by the
-// service IRI, gets the result as TSV, parses it, and writes it into a result
+// service IRI, gets the result as JSON, parses it, and writes it into a result
 // table.
 //
 // TODO: The current implementation works, but is preliminary in several
 // respects:
 //
-// 1. Reading the result as TSV has potential problems (see comment in
+// 1. There should be a timeout.
+//
+// 2. A variable in place of the IRI is not yet supported (see comment in
 // `computeResult` for details).
 //
-// 2. There should be a timeout.
-//
-// 3. A variable in place of the IRI is not yet supported (see comment in
-// `computeResult` for details).
-//
-// 4. The SERVICE is currently executed *after* the query planning. The
+// 3. The SERVICE is currently executed *after* the query planning. The
 // estimates of the result size, cost, and multiplicities are therefore dummy
 // values.
 //
 class Service : public Operation {
  public:
   // The type of the function used to obtain the results, see below.
-  using GetTsvFunction = std::function<cppcoro::generator<std::span<std::byte>>(
+  using GetResultFunction = std::function<HttpOrHttpsResponse(
       const ad_utility::httpUtils::Url&,
       ad_utility::SharedCancellationHandle handle,
       const boost::beast::http::verb&, std::string_view, std::string_view,
@@ -44,7 +42,10 @@ class Service : public Operation {
   parsedQuery::Service parsedServiceClause_;
 
   // The function used to obtain the result from the remote endpoint.
-  GetTsvFunction getTsvFunction_;
+  GetResultFunction getResultFunction_;
+
+  // The siblingTree, used for SERVICE clause optimization.
+  std::shared_ptr<QueryExecutionTree> siblingTree_;
 
  public:
   // Construct from parsed Service clause.
@@ -54,13 +55,35 @@ class Service : public Operation {
   // but in our tests (`ServiceTest`) we use a mock function that does not
   // require a running `HttpServer`.
   Service(QueryExecutionContext* qec, parsedQuery::Service parsedServiceClause,
-          GetTsvFunction getTsvFunction = sendHttpOrHttpsRequest);
+          GetResultFunction getResultFunction = sendHttpOrHttpsRequest,
+          std::shared_ptr<QueryExecutionTree> siblingTree = nullptr);
+
+  // Create a new `Service` operation, that is equal to `*this` but additionally
+  // respects the `siblingTree`. The sibling tree is a partial query that will
+  // later be joined with the result of the `Service`. If the result of the
+  // sibling is small, it will be used to constrain the SERVICE query using a
+  // `VALUES` clause.
+  [[nodiscard]] std::shared_ptr<Service> createCopyWithSiblingTree(
+      std::shared_ptr<QueryExecutionTree> siblingTree) const {
+    AD_CORRECTNESS_CHECK(siblingTree_ == nullptr);
+    // TODO<joka921> This copies the `parsedServiceClause_`. We could probably
+    // use a `shared_ptr` here to reduce the copying during QueryPlanning.
+    return std::make_shared<Service>(getExecutionContext(),
+                                     parsedServiceClause_, getResultFunction_,
+                                     std::move(siblingTree));
+  }
 
   // Methods inherited from base class `Operation`.
   std::string getDescriptor() const override;
   size_t getResultWidth() const override;
   std::vector<ColumnIndex> resultSortedOn() const override { return {}; }
   float getMultiplicity(size_t col) override;
+
+  // Getters for testing.
+  const auto& getSiblingTree() const { return siblingTree_; }
+  const auto& getGraphPatternAsString() const {
+    return parsedServiceClause_.graphPatternAsString_;
+  }
 
  private:
   uint64_t getSizeEstimateBeforeLimit() override;
@@ -75,21 +98,44 @@ class Service : public Operation {
   // A SERVICE clause has no children.
   vector<QueryExecutionTree*> getChildren() override { return {}; }
 
+  // Convert the given binding to TripleComponent.
+  static TripleComponent bindingToTripleComponent(
+      const nlohmann::json& binding);
+
  private:
   // The string returned by this function is used as cache key.
   std::string getCacheKeyImpl() const override;
 
-  // Compute the result using `getTsvFunction_`.
-  Result computeResult([[maybe_unused]] bool requestLaziness) override;
+  // Compute the result using `getResultFunction_` and the siblingTree.
+  ProtoResult computeResult([[maybe_unused]] bool requestLaziness) override;
 
-  // Write the given TSV result to the given result object. The `I` is the width
-  // of the result table.
+  // Actually compute the result for the function above.
+  ProtoResult computeResultImpl([[maybe_unused]] bool requestLaziness);
+
+  // Get a VALUES clause that contains the values of the siblingTree's result.
+  std::optional<std::string> getSiblingValuesClause() const;
+
+  // Create result for silent fail.
+  ProtoResult makeNeutralElementResultForSilentFail() const;
+
+  // Check that all visible variables of the SERVICE clause exist in the json
+  // object, otherwise throw an error.
+  void verifyVariables(const nlohmann::json& head,
+                       const ad_utility::LazyJsonParser::Details& gen) const;
+
+  // Throws an error message, providing the first 100 bytes of the result as
+  // context.
+  [[noreturn]] void throwErrorWithContext(
+      std::string_view msg, std::string_view first100,
+      std::string_view last100 = ""sv) const;
+
+  // Write the given JSON result to the given result object. The `I` is the
+  // width of the result table.
   //
   // NOTE: This is similar to `Values::writeValues`, except that we have to
-  // parse TSV here and not a VALUES clause. Note that the only reason that
-  // `tsvResult` is not `const` here is because the method iterates over the
-  // input range and thus changes it.
+  // parse JSON here and not a VALUES clause.
   template <size_t I>
-  void writeTsvResult(cppcoro::generator<std::string_view> tsvResult,
-                      IdTable* idTable, LocalVocab* localVocab);
+  void writeJsonResult(const std::vector<std::string>& vars,
+                       ad_utility::LazyJsonParser::Generator& response,
+                       IdTable* idTable, LocalVocab* localVocab);
 };

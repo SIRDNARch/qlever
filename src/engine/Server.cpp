@@ -330,7 +330,7 @@ Awaitable<void> Server::process(
     response = createJsonResponse(json, request);
   }
 
-  // Ping with or without messsage.
+  // Ping with or without message.
   if (urlPathAndParameters._path == "/ping") {
     if (auto msg = checkParameter("msg", std::nullopt)) {
       LOG(INFO) << "Alive check with message \"" << msg.value() << "\""
@@ -372,11 +372,6 @@ Awaitable<void> Server::process(
 
   // If "query" parameter is given, process query.
   if (auto query = checkParameter("query", std::nullopt)) {
-    if (query.value().empty()) {
-      throw std::runtime_error(
-          "Parameter \"query\" must not have an empty value");
-    }
-
     if (auto timeLimit = co_await verifyUserSubmittedQueryTimeout(
             checkParameter("timeout", std::nullopt), accessTokenOk, request,
             send)) {
@@ -474,7 +469,6 @@ nlohmann::json Server::composeCacheStatsJson() const {
   // converter.
   result["non-pinned-size"] = cache_.nonPinnedSize().getBytes();
   result["pinned-size"] = cache_.pinnedSize().getBytes();
-  result["num-pinned-index-scan-sizes"] = cache_.pinnedSizes().rlock()->size();
   return result;
 }
 
@@ -545,10 +539,11 @@ auto Server::setupCancellationHandle(
 Awaitable<void> Server::sendStreamableResponse(
     const ad_utility::httpUtils::HttpRequest auto& request, auto& send,
     MediaType mediaType, const PlannedQuery& plannedQuery,
-    const QueryExecutionTree& qet,
+    const QueryExecutionTree& qet, ad_utility::Timer& requestTimer,
     SharedCancellationHandle cancellationHandle) const {
-  auto responseGenerator = ExportQueryExecutionTrees::computeResultAsStream(
-      plannedQuery.parsedQuery_, qet, mediaType, std::move(cancellationHandle));
+  auto responseGenerator = ExportQueryExecutionTrees::computeResult(
+      plannedQuery.parsedQuery_, qet, mediaType, requestTimer,
+      std::move(cancellationHandle));
 
   auto response = ad_utility::httpUtils::createOkResponse(
       std::move(responseGenerator), request, mediaType);
@@ -568,7 +563,7 @@ Awaitable<void> Server::sendStreamableResponse(
     // propagate it, and log it directly, so the code doesn't try to send
     // an HTTP response containing the error message onto a HTTP stream
     // that is already partially written. The only way to pass metadata
-    // after the beginning is by using the trailer mechanism as decribed
+    // after the beginning is by using the trailer mechanism as described
     // here:
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Trailer#chunked_transfer_encoding_using_a_trailing_header
     // This won't be treated as an error by any regular HTTP client, so
@@ -590,7 +585,6 @@ boost::asio::awaitable<void> Server::processQuery(
   using namespace ad_utility::httpUtils;
   AD_CONTRACT_CHECK(params.contains("query"));
   const auto& query = params.at("query");
-  AD_CONTRACT_CHECK(!query.empty());
 
   auto sendJson =
       [&request, &send](
@@ -616,8 +610,6 @@ boost::asio::awaitable<void> Server::processQuery(
                                    const std::string& expected) {
       return params.contains(param) && params.at(param) == expected;
     };
-    size_t maxSend = params.contains("send") ? std::stoul(params.at("send"))
-                                             : MAX_NOF_ROWS_IN_RESULT;
     const bool pinSubtrees = containsParam("pinsubtrees", "true");
     const bool pinResult = containsParam("pinresult", "true");
     LOG(INFO) << "Processing the following SPARQL query:"
@@ -652,6 +644,15 @@ boost::asio::awaitable<void> Server::processQuery(
 
     if (!mediaType.has_value()) {
       mediaType = ad_utility::getMediaTypeFromAcceptHeader(acceptHeader);
+    }
+
+    std::optional<uint64_t> maxSend =
+        params.contains("send") ? std::optional{std::stoul(params.at("send"))}
+                                : std::nullopt;
+    // Limit JSON requests by default
+    if (!maxSend.has_value() && (mediaType == MediaType::sparqlJson ||
+                                 mediaType == MediaType::qleverJson)) {
+      maxSend = MAX_NOF_ROWS_IN_RESULT;
     }
 
     if (!mediaType.has_value()) {
@@ -696,37 +697,27 @@ boost::asio::awaitable<void> Server::processQuery(
               << " ms" << std::endl;
     LOG(TRACE) << qet.getCacheKey() << std::endl;
 
+    // Apply stricter limit for export if present
+    if (maxSend.has_value()) {
+      auto& pq = plannedQuery.value().parsedQuery_;
+      pq._limitOffset._limit =
+          std::min(maxSend.value(), pq._limitOffset.limitOrDefault());
+    }
+    // Make sure we don't underflow here
+    AD_CORRECTNESS_CHECK(
+        plannedQuery.value().parsedQuery_._limitOffset._offset >=
+        qet.getRootOperation()->getLimit()._offset);
+    // Don't apply offset twice, if the offset was not applied to the operation
+    // then the exporter can safely apply it during export.
+    plannedQuery.value().parsedQuery_._limitOffset._offset -=
+        qet.getRootOperation()->getLimit()._offset;
+
     // This actually processes the query and sends the result in the requested
     // format.
-    switch (mediaType.value()) {
-      using enum MediaType;
-      case csv:
-      case tsv:
-      case octetStream:
-      case sparqlXml:
-      case turtle:
-        co_await sendStreamableResponse(request, send, mediaType.value(),
-                                        plannedQuery.value(), qet,
-                                        cancellationHandle);
-        break;
-      case qleverJson:
-      case sparqlJson: {
-        // Normal case: JSON response
-        auto responseString = co_await computeInNewThread(
-            [&plannedQuery, &qet, &requestTimer, maxSend, mediaType,
-             &cancellationHandle] {
-              return ExportQueryExecutionTrees::computeResultAsJSON(
-                  plannedQuery.value().parsedQuery_, qet, requestTimer, maxSend,
-                  mediaType.value(), cancellationHandle);
-            },
-            cancellationHandle);
-        co_await sendJson(std::move(responseString), responseStatus);
-      } break;
-      default:
-        // This should never happen, because we have carefully restricted the
-        // subset of mediaTypes that can occur here.
-        AD_FAIL();
-    }
+    co_await sendStreamableResponse(request, send, mediaType.value(),
+                                    plannedQuery.value(), qet, requestTimer,
+                                    cancellationHandle);
+
     // Print the runtime info. This needs to be done after the query
     // was computed.
 

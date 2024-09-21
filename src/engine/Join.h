@@ -81,7 +81,7 @@ class Join : public Operation {
    * @brief Joins IdTables a and b on join column jc2, returning
    * the result in dynRes. Creates a cross product for matching rows.
    *
-   * This should be a switch, which shoud decide which algorithm to use for
+   * This should be a switch, which should decide which algorithm to use for
    * joining two IdTables.
    * The possible algorithms should be:
    * - The normal merge join.
@@ -100,8 +100,8 @@ class Join : public Operation {
    * the result in dynRes. Creates a cross product for matching rows by putting
    * the smaller IdTable in a hash map and using that, to faster find the
    * matching rows.
-   * Needed to be a seperate function from the actual implementation, because
-   * compiler optimization keept inlining it, which make testing impossible,
+   * Needed to be a separate function from the actual implementation, because
+   * compiler optimization kept inlining it, which make testing impossible,
    * because you couldn't call the function after linking and just got
    * 'undefined reference' errors.
    *
@@ -115,7 +115,7 @@ class Join : public Operation {
   virtual string getCacheKeyImpl() const override;
 
  private:
-  Result computeResult([[maybe_unused]] bool requestLaziness) override;
+  ProtoResult computeResult([[maybe_unused]] bool requestLaziness) override;
 
   VariableToColumnMap computeVariableToColumnMap() const override;
 
@@ -136,14 +136,6 @@ class Join : public Operation {
 
   using ScanMethodType = std::function<IdTable(Id)>;
 
-  ScanMethodType getScanMethod(
-      std::shared_ptr<QueryExecutionTree> fullScanDummyTree) const;
-
-  void appendCrossProduct(const IdTable::const_iterator& leftBegin,
-                          const IdTable::const_iterator& leftEnd,
-                          const IdTable::const_iterator& rightBegin,
-                          const IdTable::const_iterator& rightEnd,
-                          IdTable* res) const;
   /*
    * @brief Combines 2 rows like in a join and inserts the result in the
    * given table.
@@ -165,6 +157,7 @@ class Join : public Operation {
    * @brief The implementation of hashJoin.
    */
   template <int L_WIDTH, int R_WIDTH, int OUT_WIDTH>
-  void hashJoinImpl(const IdTable& dynA, ColumnIndex jc1, const IdTable& dynB,
-                    ColumnIndex jc2, IdTable* dynRes);
+  static void hashJoinImpl(const IdTable& dynA, ColumnIndex jc1,
+                           const IdTable& dynB, ColumnIndex jc2,
+                           IdTable* dynRes);
 };

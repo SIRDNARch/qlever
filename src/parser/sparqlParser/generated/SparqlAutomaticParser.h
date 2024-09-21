@@ -525,9 +525,9 @@ class SparqlAutomaticParser : public antlr4::Parser {
     QueryOrUpdateContext(antlr4::ParserRuleContext* parent,
                          size_t invokingState);
     virtual size_t getRuleIndex() const override;
+    antlr4::tree::TerminalNode* EOF();
     QueryContext* query();
     UpdateContext* update();
-    antlr4::tree::TerminalNode* EOF();
 
     virtual void enterRule(antlr4::tree::ParseTreeListener* listener) override;
     virtual void exitRule(antlr4::tree::ParseTreeListener* listener) override;
@@ -2510,6 +2510,7 @@ class SparqlAutomaticParser : public antlr4::Parser {
 
   class RelationalExpressionContext : public antlr4::ParserRuleContext {
    public:
+    antlr4::Token* notToken = nullptr;
     RelationalExpressionContext(antlr4::ParserRuleContext* parent,
                                 size_t invokingState);
     virtual size_t getRuleIndex() const override;
