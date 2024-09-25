@@ -69,7 +69,7 @@ jobs:
               SERVER_URL: ${{ secrets.SERVER_URL }}
               API_KEY: ${{ secrets.SERVER_KEY }}
       run: |
-          curl -H "x-api-key: $API_KEY" -H "event: ${{github.event_name}}" -H "sha: ${{github.sha}}" -F "file=@${{github.workspace}}/qlever-test-suite/results/${{ github.sha }}.json" $SERVER_URL/upload
+          curl -H "x-api-key: $API_KEY" -H "event: ${{github.event_name}}" -H "sha: ${{github.sha}}" -F "file=@${{github.workspace}}/qlever-test-suite/results/${{ github.sha }}.json.bz2" $SERVER_URL/upload
 
 # For a pull request we store the file as well as some information
 # about this PR (number, how to check it out, etc.) and upload it as an artifact
@@ -82,7 +82,7 @@ jobs:
         echo ${{ github.repository }} > ./conformance-report/github_repository
         echo ${GITHUB_REF} > ./conformance-report/github_ref
         echo ${{github.event.pull_request.head.sha}} > ./conformance-report/sha
-        mv ${{ github.workspace}}/qlever-test-suite/results/${{ github.sha }}.json conformance-report/${{ github.event.pull_request.head.sha }}.json
+        mv ${{ github.workspace}}/qlever-test-suite/results/${{ github.sha }}.json.bz2 conformance-report/${{ github.event.pull_request.head.sha }}.json.bz2
     - name: Upload coverage artifact
       if: github.event_name == 'pull_request'
       uses: actions/upload-artifact@v3
