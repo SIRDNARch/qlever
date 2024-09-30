@@ -56,6 +56,6 @@ jobs:
       - name: "Submit data to server"
         env:
                 SERVER_URL: ${{ secrets.SERVER_URL }}
-                API_KEY: ${{ secrets.SERVER_KEY }}
+                API_KEY: ${{ secrets.SERVER_KEY1 }}
         run: |
             curl -H "x-api-key: $API_KEY" -H "event: ${{github.event.workflow_run.event}}" -H "sha: ${{env.commit_sha}}" -H "pr-number: ${{env.pr_number}}" -H "repo: ${{env.original_github_repository}}" -F "file=@${{env.commit_sha}}.json.bz2" $SERVER_URL/upload
