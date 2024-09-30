@@ -67,7 +67,7 @@ jobs:
       if: github.event_name != 'pull_request'
       env:
               SERVER_URL: ${{ secrets.SERVER_URL }}
-              API_KEY: ${{ secrets.SERVER_KEY }}
+              API_KEY: ${{ secrets.SERVER_KEY1 }}
       run: |
           curl -H "x-api-key: $API_KEY" -H "event: ${{github.event_name}}" -H "sha: ${{github.sha}}" -F "file=@${{github.workspace}}/qlever-test-suite/results/${{ github.sha }}.json.bz2" $SERVER_URL/upload
 
