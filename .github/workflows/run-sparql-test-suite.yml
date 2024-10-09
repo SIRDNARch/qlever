@@ -31,7 +31,7 @@ jobs:
             -H "sha: ${{ github.sha }}" \
             -H "test: test" \
             -F "file=@${{ github.workspace }}/test.json" \
-            $SERVER_URL/upload
+            $SERVER_URL/upload)
 
           echo "Server response:"
           cat temp_response.txt
