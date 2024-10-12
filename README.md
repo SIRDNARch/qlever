@@ -21,7 +21,7 @@ QLever aims at full SPARQL 1.1 support and is almost there. In particular, a fir
 
 # Quickstart WOW WOW DOCKER WOW TEST TEST
 
-Use QLever via the `qlever` script, following the instructions on https://github.com/ad-freiburg/qlever-control .
+Use QLever via the `qlever` script, following the instructions on https://github.com/ad-freiburg/qlever-control .E
 The script allows you to control all things QLever does, with all the configuration in one place, the so-called `Qleverfile`.
 The script comes with a number of example `Qleverfile`s (in particular, one for each of the demos mentioned above),
 which makes it very easy to get started and also helps to write your own `Qleverfile` for your own data. If you useT
