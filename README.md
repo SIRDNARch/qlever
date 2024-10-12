@@ -14,7 +14,7 @@ Those demos also feature QLever's context-sensitive autocompletion, which makes 
 
 If you use QLever in your research work, please cite one of the following publications:
 our [CIKM'17 paper](https://ad-publications.informatik.uni-freiburg.de/CIKM_qlever_BB_2017.pdf) (combination of SPARQL and text search, with extensive evaluation),
-our [CIKM'22 paper](https://ad-publications.cs.uni-freiburg.de/CIKM_sparql_autocompletion_BKKKS_2022.pdf) (QLever's autocompletion, with extensive evaluation),
+our [CIKM'22 paper](https://ad-publications.cs.uni-freiburg.de/CIKM_sparql_autocompletion_BKKKS_2022.pdf) (QLever's autocompletion, with extensive evaluation),d
 our [2023 book chapter](https://ad-publications.cs.uni-freiburg.de/CHAPTER_knowledge_graphs_BKKK_2023.pdf) (survey of knowledge graphs and basics of QLever, with many example queries).
 
 QLever aims at full SPARQL 1.1 support and is almost there. In particular, a first version of SPARQL 1.1 Federated Query (SERVICE) is implemented since [PR #793](https://github.com/ad-freiburg/qlever/pull/793) and a proof of concept for SPARQL 1.1 Update is implemented since [PR #916](https://github.com/ad-freiburg/qlever/pull/916). If you find a bug in QLever or in one of our demos or if you are missing a feature, please [open an issue](https://github.com/ad-freiburg/qlever/issues).
