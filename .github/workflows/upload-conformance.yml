@@ -52,7 +52,7 @@ jobs:
               -H "x-api-key: $API_KEY" \
               -H "event: ${{ env.github_event }}" \
               -H "sha: ${{ env.commit_sha }}" \
-              -H "pr-numer: ${{ env.pr_number }}" \
+              -H "pr-number: ${{ env.pr_number }}" \
               -F "file=@${{env.commit_sha}}.json.bz2" \
               $SERVER_URL/upload)
 
