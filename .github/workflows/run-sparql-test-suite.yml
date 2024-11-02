@@ -28,7 +28,7 @@ jobs:
     - name: Checkout qlever-test-suite
       uses: actions/checkout@v3
       with:
-        repository: "ad-freiburg/sparql-conformance"
+        repository: "SIRDNARch/sparql-conformance"
         path: qlever-test-suite
     - name: Set up Python
       uses: actions/setup-python@v4
