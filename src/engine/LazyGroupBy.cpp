@@ -13,6 +13,7 @@ LazyGroupBy::LazyGroupBy(
     const ad_utility::AllocatorWithLimit<Id>& allocator, size_t numGroupColumns)
     : localVocab_{localVocab},
       aggregateAliases_{std::move(aggregateAliases)},
+      allocator_{allocator},
       aggregationData_{allocator, aggregateAliases_, numGroupColumns} {
   for (const auto& aggregateInfo : allAggregateInfoView()) {
     visitAggregate(
@@ -40,7 +41,7 @@ void LazyGroupBy::resetAggregationData() {
 void LazyGroupBy::commitRow(
     IdTable& resultTable,
     sparqlExpression::EvaluationContext& evaluationContext,
-    const GroupBy::GroupBlock& currentGroupBlock, const GroupBy& groupBy) {
+    const GroupBy::GroupBlock& currentGroupBlock) {
   resultTable.emplace_back();
   size_t colIdx = 0;
   for (const auto& [_, value] : currentGroupBlock) {
@@ -52,8 +53,8 @@ void LazyGroupBy::commitRow(
   evaluationContext._endIndex = resultTable.size();
 
   for (auto& alias : aggregateAliases_) {
-    groupBy.evaluateAlias(alias, &resultTable, evaluationContext,
-                          aggregationData_, &localVocab_);
+    GroupBy::evaluateAlias(alias, &resultTable, evaluationContext,
+                           aggregationData_, &localVocab_, allocator_);
   }
   resetAggregationData();
 }
@@ -67,11 +68,9 @@ void LazyGroupBy::processBlock(
   evaluationContext._endIndex = endIndex;
 
   for (const auto& aggregateInfo : allAggregateInfoView()) {
-    // Evaluate child expression on block
-    auto exprChildren = aggregateInfo.expr_->children();
-    AD_CORRECTNESS_CHECK(exprChildren.size() == 1);
     sparqlExpression::ExpressionResult expressionResult =
-        exprChildren[0]->evaluate(&evaluationContext);
+        GroupBy::evaluateChildExpressionOfAggregateFunction(aggregateInfo,
+                                                            evaluationContext);
 
     visitAggregate(
         [blockSize,
