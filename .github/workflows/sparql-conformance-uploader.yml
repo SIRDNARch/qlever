@@ -9,7 +9,7 @@ on:
 jobs:
   upload:
     env:
-          SERVER_URL: https://qlever.cs.uni-freiburg.de/sparql-conformance-uploader
+          SERVER_URL: ${{ secrets.SPARQL_CONFORMANCE_URL }}
           API_KEY: ${{ secrets.SPARQL_CONFORMANCE_TOKEN }}
     runs-on: ubuntu-latest
     if: github.event.workflow_run.conclusion == 'success'
