@@ -7,7 +7,7 @@
 
 QLever (pronounced "Clever") is a SPARQL engine that can efficiently index and query very large knowledge graphs with over 100 billion triples on a single standard PC or server.
 In particular, QLever is fast for queries that involve large intermediate or final results, which are notoriously hard for engines like Blazegraph or Virtuoso.
-QLever also supports search in text associated with the knowledge base, as well as SPARQL autocompletion.
+QLever also supports search in text associated with the knowledge base, as well as SPARQL autocompletion. Test
 
 [Here are demos of QLever](http://qlever.cs.uni-freiburg.de) on a variety of large knowledge graphs, including the complete Wikidata, Wikimedia Commons, OpenStreetMap, UniProt, PubChem, and DBLP.
 Those demos also feature QLever's context-sensitive autocompletion, which makes SPARQL query construction so much easier. The knowledge graphs are updated regularly. Click on "Index Information" for a short description (with dates) and basic statistics.
