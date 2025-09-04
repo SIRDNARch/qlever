@@ -19,7 +19,7 @@ our [2023 book chapter](https://ad-publications.cs.uni-freiburg.de/CHAPTER_knowl
 
 QLever aims at full SPARQL 1.1 support and is almost there. In particular, a first version of SPARQL 1.1 Federated Query (SERVICE) is implemented since [PR #793](https://github.com/ad-freiburg/qlever/pull/793) and a proof of concept for SPARQL 1.1 Update is implemented since [PR #916](https://github.com/ad-freiburg/qlever/pull/916). If you find a bug in QLever or in one of our demos or if you are missing a feature, please [open an issue](https://github.com/ad-freiburg/qlever/issues).
 
-# Quickstart
+# Quickstart WOW2
 
 Use QLever via the `qlever` script, following the instructions on https://github.com/ad-freiburg/qlever-control .
 The script allows you to control all things QLever does, with all the configuration in one place, the so-called `Qleverfile`.
@@ -33,4 +33,5 @@ If the `qlever` script does not work for you for whatever reason, have a look at
 An older (and not quite up-to-date anymore) step-by-step instruction can be found [here](docs/quickstart.md).
 QLever's [advanced features are described here](docs/advanced_features.md).
 For more in-depth information, see the various other `.md` files in [this folder](docs), some of which are outdated though.
-For high-level descriptions how Qlever works and experiences with some concrete datasets, see the [Qlever Wiki](https://github.com/ad-freiburg/qlever/wiki).
+For high-level descriptions how Qlever works and experiences with some concrete datasets, see the [Qlever Wiki](https://github.com/ad-freiburg/qlever/wiki). Run first run2
+
