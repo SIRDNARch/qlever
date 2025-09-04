@@ -34,3 +34,4 @@ An older (and not quite up-to-date anymore) step-by-step instruction can be foun
 QLever's [advanced features are described here](docs/advanced_features.md).
 For more in-depth information, see the various other `.md` files in [this folder](docs), some of which are outdated though.
 For high-level descriptions how Qlever works and experiences with some concrete datasets, see the [Qlever Wiki](https://github.com/ad-freiburg/qlever/wiki).
+
